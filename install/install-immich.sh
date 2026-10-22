@@ -239,7 +239,9 @@ db_password=""
 if [[ -f .env ]]; then
   db_password="$(sed -n 's/^DB_PASSWORD=//p' .env)"
 fi
-[[ -n "$db_password" ]] || db_password="$(tr -dc 'A-Za-z0-9' </dev/urandom | head -c 32)"
+# Read a fixed amount of randomness: cutting an endless stream short with
+# `head` kills the reader, which pipefail turns into a silent exit here.
+[[ -n "$db_password" ]] || db_password="$(head -c 48 /dev/urandom | base64 | tr -dc 'A-Za-z0-9')"
 tz="$(timedatectl show -p Timezone --value 2>/dev/null || echo Etc/UTC)"
 cpus=$(( cores / 2 )); (( cpus >= 1 )) || cpus=1
 
