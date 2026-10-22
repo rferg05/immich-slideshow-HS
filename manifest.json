@@ -1,0 +1,181 @@
+{
+  "id": "immich-slideshow",
+  "name": "Immich Slideshow",
+  "version": "1.0.0",
+  "description": "Photos and videos from a shared Immich album, sized to fit the module at any size. Add to the album from a phone and it shows up on the wall.",
+  "author": "Ryan",
+  "license": "MIT",
+  "minAppVersion": "1.13.0",
+  "moduleType": "immich-slideshow",
+  "category": "Media & Display",
+  "icon": "Images",
+  "defaultConfig": {
+    "shareLink": "",
+    "intervalSeconds": 15,
+    "order": "shuffle",
+    "newFirst": true,
+    "fit": "smart",
+    "maxCrop": 20,
+    "backdrop": "blur",
+    "transition": "fade",
+    "transitionSeconds": 1,
+    "slowZoom": false,
+    "videos": true,
+    "maxVideoSeconds": 60,
+    "videoSound": false,
+    "caption": "both",
+    "captionPosition": "bottom-left",
+    "refreshMinutes": 2
+  },
+  "defaultSize": {
+    "w": 960,
+    "h": 540
+  },
+  "defaultStyle": {
+    "fontSize": 18,
+    "padding": 0,
+    "borderRadius": 12,
+    "backgroundColor": "rgba(0, 0, 0, 0.35)"
+  },
+  "configSchema": {
+    "type": "object",
+    "properties": {
+      "shareLink": {
+        "type": "string",
+        "title": "Album share link",
+        "description": "In Immich, open the album, press Share, and create a link (no password). Paste it here. It looks like http://192.168.1.50:2283/share/AbC123...",
+        "ui:widget": "text",
+        "ui:group": "Album"
+      },
+      "refreshMinutes": {
+        "type": "number",
+        "title": "Check the album for new photos every (minutes)",
+        "minimum": 1,
+        "maximum": 60,
+        "ui:widget": "slider",
+        "ui:step": 1,
+        "ui:group": "Album"
+      },
+      "newFirst": {
+        "type": "boolean",
+        "title": "Show new uploads next",
+        "description": "Photos added since the last check play before the rest of the album.",
+        "ui:widget": "toggle",
+        "ui:group": "Album"
+      },
+      "order": {
+        "type": "string",
+        "title": "Order",
+        "enum": ["shuffle", "newest", "oldest", "uploaded"],
+        "enumLabels": ["Shuffle", "Newest taken first", "Oldest taken first", "Most recently added first"],
+        "ui:widget": "select",
+        "ui:group": "Playback"
+      },
+      "intervalSeconds": {
+        "type": "number",
+        "title": "Show each photo for (seconds)",
+        "minimum": 3,
+        "maximum": 120,
+        "ui:widget": "slider",
+        "ui:step": 1,
+        "ui:group": "Playback"
+      },
+      "transition": {
+        "type": "string",
+        "title": "Transition",
+        "enum": ["fade", "slide", "none"],
+        "enumLabels": ["Crossfade", "Slide", "None"],
+        "ui:widget": "select",
+        "ui:group": "Playback"
+      },
+      "transitionSeconds": {
+        "type": "number",
+        "title": "Transition length (seconds)",
+        "minimum": 0.2,
+        "maximum": 5,
+        "ui:widget": "slider",
+        "ui:step": 0.1,
+        "ui:group": "Playback"
+      },
+      "slowZoom": {
+        "type": "boolean",
+        "title": "Slow zoom on photos",
+        "description": "A gentle zoom while each photo shows (Ken Burns).",
+        "ui:widget": "toggle",
+        "ui:group": "Playback"
+      },
+      "videos": {
+        "type": "boolean",
+        "title": "Play videos",
+        "ui:widget": "toggle",
+        "ui:group": "Playback"
+      },
+      "maxVideoSeconds": {
+        "type": "number",
+        "title": "Longest a video plays (seconds)",
+        "description": "Longer videos move on after this.",
+        "minimum": 5,
+        "maximum": 600,
+        "ui:widget": "slider",
+        "ui:step": 5,
+        "ui:group": "Playback"
+      },
+      "videoSound": {
+        "type": "boolean",
+        "title": "Video sound",
+        "description": "Browsers may keep videos muted until someone touches the screen.",
+        "ui:widget": "toggle",
+        "ui:group": "Playback"
+      },
+      "fit": {
+        "type": "string",
+        "title": "Fit",
+        "enum": ["smart", "contain", "cover"],
+        "enumLabels": ["Fill unless it would crop a lot", "Always show the whole photo", "Always fill (crops edges)"],
+        "ui:widget": "select",
+        "ui:group": "Display"
+      },
+      "maxCrop": {
+        "type": "number",
+        "title": "Most to crop when filling (%)",
+        "description": "With 'Fill unless it would crop a lot': a photo fills the module only if that cuts off no more than this. An iPhone photo (4:3) in a widescreen (16:9) module loses 25%, so at 20 it's shown whole; set 25 or more to fill instead.",
+        "minimum": 0,
+        "maximum": 60,
+        "ui:widget": "slider",
+        "ui:step": 1,
+        "ui:group": "Display"
+      },
+      "backdrop": {
+        "type": "string",
+        "title": "Behind a photo that doesn't fill",
+        "enum": ["blur", "none"],
+        "enumLabels": ["Blurred copy of the photo", "Module background"],
+        "ui:widget": "select",
+        "ui:group": "Display"
+      },
+      "caption": {
+        "type": "string",
+        "title": "Caption",
+        "enum": ["both", "date", "place", "none"],
+        "enumLabels": ["Place and date", "Date", "Place", "None"],
+        "ui:widget": "select",
+        "ui:group": "Display"
+      },
+      "captionPosition": {
+        "type": "string",
+        "title": "Caption position",
+        "enum": ["bottom-left", "bottom-right", "top-left", "top-right"],
+        "enumLabels": ["Bottom left", "Bottom right", "Top left", "Top right"],
+        "ui:widget": "select",
+        "ui:group": "Display"
+      }
+    }
+  },
+  "allowedDomains": ["*"],
+  "exports": {
+    "component": "default"
+  },
+  "dataRequirements": [],
+  "prefetchUrl": null,
+  "permissions": ["network", "localNetwork"]
+}
