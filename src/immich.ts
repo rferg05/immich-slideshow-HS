@@ -76,6 +76,11 @@ export type ImageSize = 'preview' | 'thumbnail';
 export const imageUrl = (link: ShareLink, id: string, size: ImageSize, version?: string | null) =>
   `${link.origin}/api/assets/${id}/thumbnail?size=${size}&${link.auth}${version ? `&c=${encodeURIComponent(version)}` : ''}`;
 
+/** The file as uploaded. Used for animated GIF/WebP/PNG, whose previews are
+ *  a still frame. Immich only serves it when the link allows downloads. */
+export const originalUrl = (link: ShareLink, id: string) =>
+  `${link.origin}/api/assets/${id}/original?${link.auth}`;
+
 /** The H.264 copy Immich transcodes iPhone videos into, or the original when
  *  no transcode was needed. */
 export const videoUrl = (link: ShareLink, id: string) =>
@@ -91,9 +96,11 @@ export function sizeFor(px: number): ImageSize {
 export interface Asset {
   id: string;
   isVideo: boolean;
+  /** An animated GIF, WebP or PNG: Immich gives these a duration. */
+  isAnimated: boolean;
   /** width / height, as Immich reports it (already turned upright). */
   ratio: number;
-  /** Video length in ms; 0 for photos or when unknown. */
+  /** Video or animation length in ms; 0 for still photos or when unknown. */
   durationMs: number;
   /** When it was taken, as wall-clock time where it was taken, in ISO form
    *  without a zone (`2026-07-04T18:30:00`). Empty when unknown. */
@@ -183,11 +190,13 @@ export function parseAssetDto(raw: unknown): Asset | null {
     exifInfo?: { city?: string | null; country?: string | null } | null;
   };
   if (!a?.id || a.isTrashed || (a.type !== 'IMAGE' && a.type !== 'VIDEO')) return null;
+  const durationMs = parseDuration(a.duration);
   return {
     id: a.id,
     isVideo: a.type === 'VIDEO',
+    isAnimated: a.type === 'IMAGE' && durationMs > 0,
     ratio: a.width && a.height ? a.width / a.height : 0,
-    durationMs: parseDuration(a.duration),
+    durationMs,
     takenLocal: (a.localDateTime ?? '').replace(/(\.\d+)?(Z|[+-]\d\d:?\d\d)?$/, ''),
     uploadedAt: Date.parse(a.createdAt ?? '') || 0,
     city: a.exifInfo?.city ?? '',
@@ -231,11 +240,13 @@ export function parseBucket(body: unknown): Asset[] {
   ids.forEach((id, i) => {
     if (typeof id !== 'string' || col<boolean>('isTrashed', i)) return;
     const isImage = col<boolean>('isImage', i) !== false;
+    const durationMs = parseDuration(col('duration', i));
     out.push({
       id,
       isVideo: !isImage,
+      isAnimated: isImage && durationMs > 0,
       ratio: Number(col<number>('ratio', i)) || 0,
-      durationMs: parseDuration(col('duration', i)),
+      durationMs,
       takenLocal: localTaken(String(col('fileCreatedAt', i) ?? ''), Number(col('localOffsetHours', i))),
       uploadedAt: Date.parse(String(col('createdAt', i) ?? '')) || 0,
       city: col<string | null>('city', i) ?? '',

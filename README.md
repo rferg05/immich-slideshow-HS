@@ -78,7 +78,7 @@ sudo bash install-immich.sh --local
 1. On a phone or laptop, open `http://<pi-address>:2283` and create the **admin** account.
 2. **Administration > Users**: add an account for each family member.
 3. Create an album called **Dashboard** and share it with those accounts, so they can add to it.
-4. In the album, **Share > Create link**: no password, no expiry, *Allow upload* off. Copy it. This one is for the dashboard.
+4. In the album, **Share > Create link**: no password, no expiry, *Allow upload* off. Leave *Allow download* on, which animated GIFs need. Copy it. This one is for the dashboard.
 5. Optionally make a **second link with Allow upload on**, for guests and anyone who won't install the app (see below).
 
 ### 4. Add the module
@@ -114,7 +114,8 @@ The phones need to be on the home Wi-Fi to reach the Pi. To upload from anywhere
 | Transition | Crossfade, 1 s | Or slide, or none. |
 | Slow zoom | off | Ken Burns zoom toward a corner while a photo shows. |
 | Play videos | on | Muted, to the end. Off skips them. |
-| Longest a video plays | 60 s | |
+| Animate GIFs | on | Animated GIF, WebP and PNG play, each for at least one full loop. They load the original file, so the share link needs *Allow download* on; without it they show still. |
+| Longest a video or animation plays | 60 s | |
 | Video sound | off | Browsers may still mute videos until someone has touched the screen. |
 | Fit | Fill unless it would crop a lot | See the top of this page. |
 | Most to crop when filling | 20% | An iPhone photo (4:3) in a widescreen (16:9) module loses 25% when filling, so at 20% it's shown whole. Set 25 or more to fill. |

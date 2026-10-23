@@ -1,8 +1,8 @@
 {
   "id": "immich-slideshow",
   "name": "Immich Slideshow",
-  "version": "1.0.0",
-  "description": "Photos and videos from a shared Immich album, sized to fit the module at any size. Add to the album from a phone and it shows up on the wall.",
+  "version": "1.1.0",
+  "description": "Photos, videos and animated GIFs from a shared Immich album, sized to fit the module at any size. Add to the album from a phone and it shows up on the wall.",
   "author": "Ryan",
   "license": "MIT",
   "minAppVersion": "1.13.0",
@@ -21,6 +21,7 @@
     "transitionSeconds": 1,
     "slowZoom": false,
     "videos": true,
+    "animated": true,
     "maxVideoSeconds": 60,
     "videoSound": false,
     "caption": "both",
@@ -110,10 +111,17 @@
         "ui:widget": "toggle",
         "ui:group": "Playback"
       },
+      "animated": {
+        "type": "boolean",
+        "title": "Animate GIFs",
+        "description": "Animated GIF, WebP and PNG images play, each for at least one full loop. Needs the share link's 'Allow download' on; otherwise they show still.",
+        "ui:widget": "toggle",
+        "ui:group": "Playback"
+      },
       "maxVideoSeconds": {
         "type": "number",
-        "title": "Longest a video plays (seconds)",
-        "description": "Longer videos move on after this.",
+        "title": "Longest a video or animation plays (seconds)",
+        "description": "Longer videos and animated GIFs move on after this.",
         "minimum": 5,
         "maximum": 600,
         "ui:widget": "slider",

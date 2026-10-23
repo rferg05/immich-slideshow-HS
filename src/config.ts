@@ -18,6 +18,7 @@ export interface Config {
   transitionSeconds: number;
   slowZoom: boolean;
   videos: boolean;
+  animated: boolean;
   maxVideoSeconds: number;
   videoSound: boolean;
   caption: Caption;
@@ -49,6 +50,7 @@ export function readConfig(raw: Record<string, unknown>): Config {
     transitionSeconds: num(raw.transitionSeconds, 1, 0.2, 5),
     slowZoom: bool(raw.slowZoom, false),
     videos: bool(raw.videos, true),
+    animated: bool(raw.animated, true),
     maxVideoSeconds: num(raw.maxVideoSeconds, 60, 5, 600),
     videoSound: bool(raw.videoSound, false),
     caption: pick(raw.caption, ['both', 'date', 'place', 'none'] as const, 'both'),

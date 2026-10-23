@@ -6,11 +6,13 @@ import { readConfig } from './config';
 import type { Config } from './config';
 import { leavesBars, objectFit } from './fit';
 import { Playlist } from './playlist';
-import { hostFetcher, ImmichError, imageUrl, loadAlbum, parseShareLink, PLUGIN_ID, sizeFor, videoUrl } from './immich';
+import { hostFetcher, ImmichError, imageUrl, loadAlbum, originalUrl, parseShareLink, PLUGIN_ID, sizeFor, videoUrl } from './immich';
 import type { AlbumState, Asset, Failure, Fetcher, ShareLink } from './immich';
 
 /** A photo or video that hasn't loaded by then is skipped. */
 const LOAD_TIMEOUT_MS = 20_000;
+/** Longest to wait for a loaded photo to finish decoding before showing it. */
+const DECODE_WAIT_MS = 1500;
 /** After this many failures in a row the module says so, and tries again slowly. */
 const STALL_AFTER = 5;
 const STALL_RETRY_MS = 30_000;
@@ -170,6 +172,20 @@ function layerStyle(phase: Phase, cfg: Config, hold: boolean): CSSProperties {
   return { ...base, opacity: phase === 'shown' || (phase === 'leaving' && hold) ? 1 : 0, transition: `opacity ${ms}ms ease-in-out` };
 }
 
+/** Where a photo loads from. An animated GIF/WebP/PNG plays from its
+ *  original file, since Immich's preview of it is a still frame. */
+function photoUrl(link: ShareLink, asset: Asset, cfg: Config, size: ReturnType<typeof sizeFor>, still = false): string {
+  return asset.isAnimated && cfg.animated && !still ? originalUrl(link, asset.id) : imageUrl(link, asset.id, size, asset.version);
+}
+
+/** How long a photo stays up: the interval, or for an animation at least one
+ *  full loop, within the video length cap. */
+function showMs(asset: Asset, cfg: Config): number {
+  const interval = cfg.intervalSeconds * 1000;
+  if (!asset.isAnimated || !cfg.animated) return interval;
+  return Math.min(Math.max(interval, asset.durationMs), Math.max(interval, cfg.maxVideoSeconds * 1000));
+}
+
 interface LayerProps {
   layer: Layer;
   link: ShareLink;
@@ -183,6 +199,9 @@ interface LayerProps {
 function LayerView({ layer, link, cfg, box, onReady, onFail, onEnded }: LayerProps) {
   const { asset, phase, key } = layer;
   const [ratio, setRatio] = useState(asset.ratio);
+  // Set when Immich won't serve an animation's original (the link doesn't
+  // allow downloads): show its still preview rather than skip it.
+  const [still, setStill] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const settled = useRef(false);
 
@@ -220,7 +239,7 @@ function LayerView({ layer, link, cfg, box, onReady, onFail, onEnded }: LayerPro
   const dpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
   const size = sizeFor(Math.max(box.w, box.h) * dpr);
   const media: CSSProperties = { position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: fit, display: 'block' };
-  const zoom = cfg.slowZoom && !asset.isVideo && phase !== 'loading';
+  const zoom = cfg.slowZoom && !asset.isVideo && !(asset.isAnimated && cfg.animated) && phase !== 'loading';
 
   return (
     <div style={layerStyle(phase, cfg, !!layer.hold)} aria-hidden={phase !== 'shown'}>
@@ -259,17 +278,24 @@ function LayerView({ layer, link, cfg, box, onReady, onFail, onEnded }: LayerPro
           />
         ) : (
           <img
-            src={imageUrl(link, asset.id, size, asset.version)}
+            src={photoUrl(link, asset, cfg, size, still)}
             alt=""
             decoding="async"
             style={media}
             onLoad={(e) => {
               const img = e.currentTarget;
               const r = img.naturalWidth / (img.naturalHeight || 1);
-              // Wait for the decode so the fade never starts on a blank frame.
-              (img.decode ? img.decode() : Promise.resolve()).then(() => ready(r), () => ready(r));
+              // Wait for the decode so the fade never starts on a blank frame,
+              // but not forever: for animated images it can stay pending.
+              const decoded = img.decode ? img.decode().catch(() => undefined) : Promise.resolve();
+              Promise.race([decoded, new Promise((r) => setTimeout(r, DECODE_WAIT_MS))]).then(() => ready(r));
             }}
-            onError={fail}
+            onError={() => {
+              if (asset.isAnimated && cfg.animated && !still) {
+                log('warn', `Animated image ${asset.id} not served (does the share link allow downloads?); showing it still`);
+                setStill(true);
+              } else fail();
+            }}
           />
         )}
       </div>
@@ -437,12 +463,12 @@ function Slideshow({ link, session, cfg, box, tick }: { link: ShareLink; session
       });
     }, transitionMs + 150);
     // Videos advance when they end; this is the cap on a long one.
-    schedule(asset.isVideo ? c.maxVideoSeconds * 1000 : c.intervalSeconds * 1000 + transitionMs, advance);
+    schedule(asset.isVideo ? c.maxVideoSeconds * 1000 : showMs(asset, c) + transitionMs, advance);
     // Warm the browser cache for the next photo while this one shows.
     const next = session.playlist.peek();
     if (next && !next.isVideo) {
       const img = new Image();
-      img.src = imageUrl(link, next.id, sizeFor(Math.max(b.w, b.h) * (window.devicePixelRatio || 1)), next.version);
+      img.src = photoUrl(link, next, c, sizeFor(Math.max(b.w, b.h) * (window.devicePixelRatio || 1)));
     }
   }, [advance, schedule, session, link]);
 

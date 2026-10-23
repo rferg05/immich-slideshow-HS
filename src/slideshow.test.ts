@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { cropFraction, leavesBars, objectFit } from './fit';
 import {
-  imageUrl, loadAlbum, localTaken, parseBucket, parseBuckets, parseDuration, parseLinkInfo, parseShareLink, sizeFor, videoUrl,
+  imageUrl, loadAlbum, originalUrl, localTaken, parseBucket, parseBuckets, parseDuration, parseLinkInfo, parseShareLink, sizeFor, videoUrl,
 } from './immich';
 import type { Asset, Fetcher, ShareLink } from './immich';
 import { ordered, Playlist } from './playlist';
@@ -28,6 +28,7 @@ describe('share links', () => {
     const l = link('http://pi:2283/share/k1');
     expect(imageUrl(l, 'a1', 'preview', 'th+1')).toBe('http://pi:2283/api/assets/a1/thumbnail?size=preview&key=k1&c=th%2B1');
     expect(videoUrl(l, 'a1')).toBe('http://pi:2283/api/assets/a1/video/playback?key=k1');
+    expect(originalUrl(l, 'a1')).toBe('http://pi:2283/api/assets/a1/original?key=k1');
   });
   it('uses the small thumbnail only for small modules', () => {
     expect(sizeFor(200)).toBe('thumbnail');
@@ -105,6 +106,21 @@ describe('Immich responses', () => {
     expect(assets[0]).toMatchObject({ id: 'a', isVideo: false, ratio: 0.75, takenLocal: '2026-07-04T18:30:00', city: 'Chicago', version: 'h1' });
     expect(assets[1]).toMatchObject({ id: 'b', isVideo: true, durationMs: 8000, takenLocal: '2026-07-04T20:00:00', city: '' });
   });
+  it('tells animated GIFs from still photos by their duration', () => {
+    const [still, gif, video] = parseBucket({
+      id: ['s', 'g', 'v'],
+      isImage: [true, true, false],
+      duration: [null, 2400, 8000],
+      ratio: [1, 1, 1],
+    });
+    expect([still.isAnimated, gif.isAnimated, video.isAnimated]).toEqual([false, true, false]);
+    expect(gif).toMatchObject({ isVideo: false, durationMs: 2400 });
+    const dto = parseLinkInfo({ type: 'INDIVIDUAL', assets: [
+      { id: 'g', type: 'IMAGE', duration: '0:00:02.400', width: 10, height: 10 },
+      { id: 's', type: 'IMAGE', duration: '0:00:00.00000', width: 10, height: 10 },
+    ] }).assets!;
+    expect(dto.map((a) => a.isAnimated)).toEqual([true, false]);
+  });
   it('reads both duration formats', () => {
     expect(parseDuration(1500)).toBe(1500);
     expect(parseDuration('0:01:02.250')).toBe(62250);
@@ -181,7 +197,7 @@ describe('loading an album', () => {
 });
 
 const asset = (id: string, over: Partial<Asset> = {}): Asset => ({
-  id, isVideo: false, ratio: 1.5, durationMs: 0, takenLocal: '', uploadedAt: 0, city: '', country: '', version: null, ...over,
+  id, isVideo: false, isAnimated: false, ratio: 1.5, durationMs: 0, takenLocal: '', uploadedAt: 0, city: '', country: '', version: null, ...over,
 });
 
 describe('playlist', () => {
@@ -231,6 +247,6 @@ describe('playlist', () => {
 describe('config', () => {
   it('fills defaults and clamps', () => {
     const c = readConfig({ intervalSeconds: '1', order: 'bogus', maxCrop: 99, videos: 'false' });
-    expect(c).toMatchObject({ intervalSeconds: 3, order: 'shuffle', maxCrop: 60, videos: false, fit: 'smart', caption: 'both' });
+    expect(c).toMatchObject({ intervalSeconds: 3, order: 'shuffle', maxCrop: 60, videos: false, animated: true, fit: 'smart', caption: 'both' });
   });
 });

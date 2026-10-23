@@ -7,6 +7,8 @@ import path from 'node:path';
 import type { Plugin } from 'vite';
 
 export const DEMO_KEY = 'demo-key';
+/** A second link to the same album with downloads turned off. */
+export const NO_DOWNLOAD_KEY = 'nodl-key';
 const ALBUM_ID = '6f1e2d3c-4b5a-4c6d-8e7f-0a1b2c3d4e5f';
 
 interface MockAsset {
@@ -15,6 +17,8 @@ interface MockAsset {
   w: number;
   h: number;
   video: boolean;
+  /** An animated GIF: a photo with a duration, served from /original. */
+  gif?: boolean;
   taken: string; // UTC
   offset: number;
   uploaded: string;
@@ -40,6 +44,12 @@ const assets: MockAsset[] = [
   taken: taken as string, offset: offset as number, city: city as string | null, country: country as string | null,
   uploaded: new Date(now - (10 - i) * day).toISOString(), hue: (i * 53) % 360,
 }));
+
+assets.push({
+  id: uuid(8), label: 'Animated GIF 4:3', w: 480, h: 360, video: false, gif: true,
+  taken: '2026-10-15T18:00:00Z', offset: -5, uploaded: new Date(now - 2 * day).toISOString(),
+  city: 'Chicago', country: 'United States of America', hue: 200,
+});
 
 let added = 0;
 
@@ -73,6 +83,7 @@ function bucketOf(a: MockAsset) {
 
 export function mockImmich(): Plugin {
   const sample = path.resolve(__dirname, 'sample.mp4');
+  const gif = path.resolve(__dirname, 'sample.gif');
   return {
     name: 'mock-immich',
     configureServer(server) {
@@ -96,7 +107,7 @@ export function mockImmich(): Plugin {
         }
         if (!url.pathname.startsWith('/api/')) return next();
         const key = url.searchParams.get('key');
-        if (key !== DEMO_KEY) return json(401, { message: 'Invalid share key', error: 'Unauthorized', statusCode: 401 });
+        if (key !== DEMO_KEY && key !== NO_DOWNLOAD_KEY) return json(401, { message: 'Invalid share key', error: 'Unauthorized', statusCode: 401 });
 
         if (url.pathname === '/api/shared-links/me') {
           return json(200, {
@@ -117,7 +128,7 @@ export function mockImmich(): Plugin {
             id: list.map((a) => a.id),
             isImage: list.map((a) => !a.video),
             ratio: list.map((a) => a.w / a.h),
-            duration: list.map((a) => (a.video ? 6000 : null)),
+            duration: list.map((a) => (a.video ? 6000 : a.gif ? 3000 : null)),
             fileCreatedAt: list.map((a) => a.taken),
             localOffsetHours: list.map((a) => a.offset),
             createdAt: list.map((a) => a.uploaded),
@@ -132,13 +143,19 @@ export function mockImmich(): Plugin {
             projectionType: list.map(() => null),
           });
         }
-        const m = /^\/api\/assets\/([^/]+)\/(thumbnail|video\/playback)$/.exec(url.pathname);
+        const m = /^\/api\/assets\/([^/]+)\/(thumbnail|original|video\/playback)$/.exec(url.pathname);
         const a = m && assets.find((x) => x.id === m[1]);
         if (!m || !a) return json(404, { message: 'Not found' });
         if (m[2] === 'thumbnail') {
           res.setHeader('Content-Type', 'image/svg+xml');
           res.setHeader('Cache-Control', 'private, max-age=86400');
           return res.end(svg(a, url.searchParams.get('size') === 'thumbnail'));
+        }
+        if (m[2] === 'original') {
+          // Like Immich, refuse originals when the link doesn't allow downloads.
+          if (!a.gif || !fs.existsSync(gif) || key === NO_DOWNLOAD_KEY) return json(403, { message: 'Not allowed' });
+          res.setHeader('Content-Type', 'image/gif');
+          return fs.createReadStream(gif).pipe(res);
         }
         if (!a.video || !fs.existsSync(sample)) return json(404, { message: 'Not found' });
         res.setHeader('Content-Type', 'video/mp4');
